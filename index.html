@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-width=1.0">
+    <title>Indicador de Pagamentos Diários</title>
+    <!-- Biblioteca para ler Excel direto no navegador -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --border: #e5e7eb;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        input[type="file"] {
+            display: block;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            width: 100%;
+            max-width: 400px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #4b5563;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .summary-box {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .summary-box h3 { margin: 0; font-size: 14px; font-weight: normal; }
+        .summary-box p { margin: 10px 0 0; font-size: 24px; font-weight: bold; }
+        
+        .status-ok { color: #059669; font-weight: bold; }
+        .status-pending { color: #d97706; font-weight: bold; }
+        
+        .day-section {
+            border-left: 4px solid var(--primary);
+            padding-left: 15px;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>📊 Indicador de Pagamentos</h2>
+    </div>
+
+    <div class="card">
+        <label for="uploadExcel"><strong>Carregar Base (Excel):</strong></label>
+        <input type="file" id="uploadExcel" accept=".xlsx, .xls">
+        <small style="color: #6b7280;">Colunas necessárias: Data, Tipo, Valor, Status</small>
+    </div>
+
+    <div id="dashboard" style="display: none;">
+        <div class="summary-grid">
+            <div class="summary-box">
+                <h3>Total de Pagamentos Lidos</h3>
+                <p id="totalQtd">0</p>
+            </div>
+            <div class="summary-box">
+                <h3>Volume Financeiro Total</h3>
+                <p id="totalValor">R$ 0,00</p>
+            </div>
+        </div>
+
+        <div class="card" id="dadosPorDia">
+            <!-- Os dados agrupados por dia aparecerão aqui -->
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('uploadExcel').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array', cellDates: true});
+            
+            // Pega a primeira aba da planilha
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            // Converte para JSON (raw: false mantém a formatação de data)
+            const json = XLSX.utils.sheet_to_json(worksheet, {raw: false});
+            
+            processarDados(json);
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    function limparValor(val) {
+        if (typeof val === 'number') return val;
+        if (!val) return 0;
+        // Tenta limpar formatação de moeda brasileira caso venha como texto
+        let limpo = val.toString().replace(/[R$\s\.]/g, '').replace(',', '.');
+        return parseFloat(limpo) || 0;
+    }
+
+    function formatarMoeda(valor) {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+    }
+
+    function processarDados(dados) {
+        const agrupadoPorData = {};
+        let totalQtd = 0;
+        let totalValor = 0;
+
+        dados.forEach(linha => {
+            const data = linha['Data'] || 'Sem Data';
+            const tipo = linha['Tipo'] || '-';
+            const valor = limparValor(linha['Valor']);
+            const status = (linha['Status'] || '').trim();
+
+            if (!agrupadoPorData[data]) {
+                agrupadoPorData[data] = { qtd: 0, soma: 0, itens: [] };
+            }
+
+            agrupadoPorData[data].qtd += 1;
+            agrupadoPorData[data].soma += valor;
+            agrupadoPorData[data].itens.push({ tipo, valor, status });
+
+            totalQtd++;
+            totalValor += valor;
+        });
+
+        // Atualiza os cards superiores
+        document.getElementById('totalQtd').innerText = totalQtd;
+        document.getElementById('totalValor').innerText = formatarMoeda(totalValor);
+        
+        renderizarTabelas(agrupadoPorData);
+        document.getElementById('dashboard').style.display = 'block';
+    }
+
+    function renderizarTabelas(dadosAgrupados) {
+        const container = document.getElementById('dadosPorDia');
+        container.innerHTML = '<h3>Detalhamento por Dia</h3>';
+
+        for (const [data, info] of Object.entries(dadosAgrupados)) {
+            let html = `
+                <div class="day-section">
+                    <h4 style="margin-bottom: 5px; color: #1e3a8a;">📅 Data: ${data}</h4>
+                    <p style="margin-top: 0; font-size: 14px;">
+                        <strong>Volume:</strong> ${info.qtd} pagamentos | 
+                        <strong>Total do Dia:</strong> ${formatarMoeda(info.soma)}
+                    </p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            info.itens.forEach(item => {
+                let statusBadge = '';
+                let statusLower = item.status.toLowerCase();
+                
+                // Regra do Check
+                if (statusLower === 'envio de comprovante') {
+                    statusBadge = '<span class="status-ok">✅ OK</span>';
+                } else {
+                    statusBadge = `<span class="status-pending">⏳ ${item.status}</span>`;
+                }
+
+                html += `
+                    <tr>
+                        <td>${item.tipo}</td>
+                        <td>${formatarMoeda(item.valor)}</td>
+                        <td>${statusBadge}</td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table></div><hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;">`;
+            container.innerHTML += html;
+        }
+    }
+</script>
+
+</body>
+</html>
