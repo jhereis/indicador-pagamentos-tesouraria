@@ -8,20 +8,20 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
-            /* Paleta Business Blue exata da imagem */
-            --bg-color: #f3f6f9;       /* Off-white / Cinza clarinho */
-            --card-bg: #ffffff;        /* Fundo branco para contraste dos cartões */
-            --primary: #567c8e;        /* Azul Teal / Médio */
-            --primary-dark: #2f4157;   /* Azul Marinho / Escuro */
-            --primary-light: #e3ecf2;  /* Azul Gelo / Muito claro */
-            --primary-muted: #c7d9e5;  /* Azul Mudo / Acinzentado */
-            --primary-accent: #a2c1d1; /* Azul Cinza Claro */
+            /* Paleta Business Blue exata */
+            --bg-color: #f3f6f9;       
+            --card-bg: #ffffff;        
+            --primary: #567c8e;        
+            --primary-dark: #2f4157;   
+            --primary-light: #e3ecf2;  
+            --primary-muted: #c7d9e5;  
+            --primary-accent: #a2c1d1; 
             
-            --text-main: #2f4157;      /* Usando o azul mais escuro para texto principal */
-            --text-muted: #567c8e;     /* Usando o azul médio para texto secundário */
-            --border: #c7d9e5;         /* Bordas com a cor intermediária */
+            --text-main: #2f4157;      
+            --text-muted: #567c8e;     
+            --border: #c7d9e5;         
             
-            /* Status Badges adaptados para a paleta */
+            /* Status Badges */
             --status-ok-bg: #e3ecf2;
             --status-ok-text: #2f4157;
             --status-pending-bg: #f3f6f9;
@@ -37,207 +37,99 @@
             padding: 40px 20px;
         }
         
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-        }
+        .container { max-width: 1100px; margin: 0 auto; }
         
-        .header {
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        
+        .header { margin-bottom: 30px; text-align: center; }
         .header h2 {
-            color: var(--primary-dark);
-            font-size: 28px;
-            margin: 0 0 10px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+            color: var(--primary-dark); font-size: 28px; margin: 0 0 10px 0;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
         }
-        
-        .header p {
-            color: var(--text-muted);
-            margin: 0;
-            font-size: 15px;
-            font-weight: 500;
-        }
+        .header p { color: var(--text-muted); margin: 0; font-size: 15px; font-weight: 500; }
         
         .card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 25px;
+            background-color: var(--card-bg); border-radius: 12px; padding: 25px;
             box-shadow: 0 4px 6px -1px rgba(47, 65, 87, 0.05), 0 2px 4px -1px rgba(47, 65, 87, 0.03);
-            margin-bottom: 25px;
-            border: 1px solid var(--primary-light);
+            margin-bottom: 25px; border: 1px solid var(--primary-light);
         }
         
         .upload-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            border: 2px dashed var(--primary-accent);
-            background-color: var(--bg-color);
-            padding: 40px 20px;
-            border-radius: 8px;
-            transition: all 0.3s ease;
+            display: flex; flex-direction: column; align-items: center;
+            border: 2px dashed var(--primary-accent); background-color: var(--bg-color);
+            padding: 40px 20px; border-radius: 8px; transition: all 0.3s ease;
         }
-        
-        .upload-section:hover {
-            border-color: var(--primary);
-            background-color: var(--primary-light);
-        }
-        
-        .upload-section label {
-            font-weight: 600;
-            color: var(--primary-dark);
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-        
-        input[type="file"] {
-            display: block;
-            margin-bottom: 10px;
-            font-family: inherit;
-        }
-        
+        .upload-section:hover { border-color: var(--primary); background-color: var(--primary-light); }
+        .upload-section label { font-weight: 600; color: var(--primary-dark); margin-bottom: 10px; font-size: 16px; }
+        input[type="file"] { display: block; margin-bottom: 10px; font-family: inherit; }
         input[type="file"]::file-selector-button {
-            padding: 10px 20px;
-            border-radius: 6px;
-            border: none;
-            background-color: var(--primary);
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            margin-right: 15px;
+            padding: 10px 20px; border-radius: 6px; border: none;
+            background-color: var(--primary); color: white; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s; margin-right: 15px;
         }
+        input[type="file"]::file-selector-button:hover { background-color: var(--primary-dark); }
         
-        input[type="file"]::file-selector-button:hover {
-            background-color: var(--primary-dark);
+        /* Estilos dos Filtros */
+        .filter-container {
+            display: flex; align-items: center; gap: 15px; flex-wrap: wrap;
+            background-color: var(--card-bg); padding: 15px 25px; border-radius: 8px;
+            border: 1px solid var(--primary-light); margin-bottom: 25px;
+            box-shadow: 0 2px 4px -1px rgba(47, 65, 87, 0.03);
         }
+        .filter-label { font-weight: 600; color: var(--primary-dark); margin-right: 5px; }
         
+        .btn {
+            padding: 10px 18px; border-radius: 6px; border: none;
+            font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: var(--primary-dark); }
+        .btn-outline { background-color: transparent; border: 1px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background-color: var(--primary-light); }
+        
+        .date-picker-group {
+            display: flex; align-items: center; gap: 10px;
+            border-left: 2px solid var(--primary-light); padding-left: 15px; margin-left: 5px;
+        }
+        .date-picker-group input[type="date"] {
+            padding: 8px 12px; border: 1px solid var(--primary-muted);
+            border-radius: 6px; color: var(--primary-dark); font-family: inherit;
+            outline: none;
+        }
+        .date-picker-group input[type="date"]:focus { border-color: var(--primary); }
+        
+        /* Resumos e Tabelas */
         .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 25px;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 25px;
         }
-        
         .summary-box {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            padding: 25px;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 10px 15px -3px rgba(47, 65, 87, 0.2);
-            border: 1px solid var(--primary-dark);
+            color: white; padding: 25px; border-radius: 12px; display: flex; flex-direction: column;
+            box-shadow: 0 10px 15px -3px rgba(47, 65, 87, 0.2); border: 1px solid var(--primary-dark);
         }
+        .summary-box h3 { margin: 0 0 10px 0; font-size: 14px; font-weight: 500; text-transform: uppercase; opacity: 0.9; }
+        .summary-box p { margin: 0; font-size: 32px; font-weight: 700; }
         
-        .summary-box h3 { 
-            margin: 0 0 10px 0; 
-            font-size: 14px; 
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            opacity: 0.9;
-        }
-        
-        .summary-box p { 
-            margin: 0; 
-            font-size: 32px; 
-            font-weight: 700; 
-        }
-        
-        .day-section {
-            margin-bottom: 40px;
-        }
-        
+        .day-section { margin-bottom: 40px; }
         .day-header {
-            background-color: var(--primary-light);
-            border-left: 4px solid var(--primary-dark);
-            padding: 15px 20px;
-            border-radius: 4px 8px 8px 4px;
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background-color: var(--primary-light); border-left: 4px solid var(--primary-dark);
+            padding: 15px 20px; border-radius: 4px 8px 8px 4px; margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
         }
+        .day-header h4 { margin: 0; color: var(--primary-dark); font-size: 18px; display: flex; align-items: center; gap: 8px; }
+        .day-stats { font-size: 14px; color: var(--primary-dark); font-weight: 500; }
         
-        .day-header h4 {
-            margin: 0;
-            color: var(--primary-dark);
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background-color: var(--bg-color); font-weight: 600; color: var(--primary-dark); text-transform: uppercase; font-size: 12px; }
+        th:first-child { border-top-left-radius: 8px; } th:last-child { border-top-right-radius: 8px; }
+        tr:hover td { background-color: var(--primary-light); }
         
-        .day-stats {
-            font-size: 14px;
-            color: var(--primary-dark);
-            font-weight: 500;
-        }
+        .badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+        .status-ok { background-color: var(--status-ok-bg); color: var(--status-ok-text); }
+        .status-pending { background-color: var(--status-pending-bg); color: var(--status-pending-text); border: 1px solid var(--status-pending-border); }
         
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            margin-top: 10px;
-        }
-        
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-        
-        th {
-            background-color: var(--bg-color);
-            font-weight: 600;
-            color: var(--primary-dark);
-            text-transform: uppercase;
-            font-size: 12px;
-            letter-spacing: 0.5px;
-        }
-        
-        th:first-child { border-top-left-radius: 8px; }
-        th:last-child { border-top-right-radius: 8px; }
-        
-        tr:hover td {
-            background-color: var(--primary-light);
-        }
-        
-        .badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .status-ok { 
-            background-color: var(--status-ok-bg);
-            color: var(--status-ok-text);
-        }
-        
-        .status-pending { 
-            background-color: var(--status-pending-bg);
-            color: var(--status-pending-text);
-            border: 1px solid var(--status-pending-border);
-        }
-        
-        #loader {
-            display: none;
-            text-align: center;
-            padding: 20px;
-            color: var(--primary);
-            font-weight: bold;
-        }
+        #loader { display: none; text-align: center; padding: 20px; color: var(--primary); font-weight: bold; }
+        .empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-size: 16px; background-color: var(--bg-color); border-radius: 8px; border: 1px dashed var(--primary-muted); }
     </style>
 </head>
 <body>
@@ -252,7 +144,7 @@
             </svg>
             Indicador de Pagamentos Diários
         </h2>
-        <p>Visão Executiva - Dados extraídos de arquivo Excel</p>
+        <p>Visão Executiva - Controle de Tesouraria</p>
     </div>
 
     <div class="card">
@@ -267,31 +159,53 @@
 
     <div id="loader">Processando dados...</div>
 
+    <!-- Barra de Filtros (Escondida até carregar o arquivo) -->
+    <div id="filterSection" class="filter-container" style="display: none;">
+        <span class="filter-label">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+            Filtros:
+        </span>
+        <button id="btnHoje" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            Hoje (Atualizar)
+        </button>
+        <button id="btnTudo" class="btn btn-outline">Mostrar Tudo</button>
+        
+        <div class="date-picker-group">
+            <label for="inputDataFiltro" style="color: var(--text-muted); font-size: 14px; font-weight: 500;">Outra data:</label>
+            <input type="date" id="inputDataFiltro">
+            <button id="btnFiltrarData" class="btn btn-primary">Buscar</button>
+        </div>
+    </div>
+
     <div id="dashboard" style="display: none;">
         <div class="summary-grid">
             <div class="summary-box">
-                <h3>Total de Pagamentos</h3>
+                <h3 id="tituloQtd">Total de Pagamentos (Filtro)</h3>
                 <p id="totalQtd">0</p>
             </div>
             <div class="summary-box">
-                <h3>Volume Financeiro Total</h3>
+                <h3 id="tituloValor">Volume Financeiro (Filtro)</h3>
                 <p id="totalValor">R$ 0,00</p>
             </div>
         </div>
 
         <div class="card" id="dadosPorDia">
-            <!-- Os dados agrupados por dia aparecerão aqui -->
+            <!-- Os dados aparecerão aqui -->
         </div>
     </div>
 </div>
 
 <script>
+    // Variável global para armazenar os dados crus do Excel
+    let dadosGlobaisExcel = [];
+
     document.getElementById('uploadExcel').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
 
-        // Mostra o "carregando"
         document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('filterSection').style.display = 'none';
         document.getElementById('loader').style.display = 'block';
 
         const reader = new FileReader();
@@ -303,12 +217,16 @@
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 
-                const json = XLSX.utils.sheet_to_json(worksheet, {raw: false});
+                // Converte Excel para JSON
+                dadosGlobaisExcel = XLSX.utils.sheet_to_json(worksheet, {raw: false});
                 
                 setTimeout(() => { 
-                    processarDados(json);
                     document.getElementById('loader').style.display = 'none';
+                    document.getElementById('filterSection').style.display = 'flex';
                     document.getElementById('dashboard').style.display = 'block';
+                    
+                    // Ao carregar, já filtra pelo dia de hoje automaticamente
+                    aplicarFiltro(obterDataHojeFormatada());
                 }, 500);
 
             } catch (error) {
@@ -318,6 +236,73 @@
         };
         reader.readAsArrayBuffer(file);
     });
+
+    // --- FUNÇÕES DE DATA E FILTRO ---
+
+    function obterDataHojeFormatada() {
+        const hoje = new Date();
+        const d = String(hoje.getDate()).padStart(2, '0');
+        const m = String(hoje.getMonth() + 1).padStart(2, '0');
+        const y = hoje.getFullYear();
+        return `${d}/${m}/${y}`; // Retorna DD/MM/YYYY
+    }
+
+    function converterDataInputParaBR(dataInput) {
+        // O input type="date" retorna "YYYY-MM-DD"
+        if (!dataInput) return null;
+        const partes = dataInput.split('-');
+        if (partes.length !== 3) return null;
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+
+    function aplicarFiltro(dataFiltro) {
+        if (!dadosGlobaisExcel || dadosGlobaisExcel.length === 0) return;
+
+        let dadosFiltrados = dadosGlobaisExcel;
+        
+        // Se houver uma data definida para filtro, aplicamos a lógica
+        if (dataFiltro) {
+            dadosFiltrados = dadosGlobaisExcel.filter(linha => {
+                let d = linha['Data'] || linha['data'] || linha['DATA'] || '';
+                // Transforma em string para evitar erros e checa se contém a data
+                return String(d).includes(dataFiltro);
+            });
+            
+            // Atualiza os títulos dos cards de resumo
+            document.getElementById('tituloQtd').innerText = `Total de Pagamentos (${dataFiltro})`;
+            document.getElementById('tituloValor').innerText = `Volume Financeiro (${dataFiltro})`;
+        } else {
+            // Se for "Mostrar Tudo"
+            document.getElementById('tituloQtd').innerText = `Total de Pagamentos (Geral)`;
+            document.getElementById('tituloValor').innerText = `Volume Financeiro (Geral)`;
+        }
+
+        processarE_RenderizarDados(dadosFiltrados);
+    }
+
+    // --- EVENTOS DOS BOTÕES ---
+
+    document.getElementById('btnHoje').addEventListener('click', () => {
+        document.getElementById('inputDataFiltro').value = ''; // Limpa o calendário
+        aplicarFiltro(obterDataHojeFormatada());
+    });
+
+    document.getElementById('btnTudo').addEventListener('click', () => {
+        document.getElementById('inputDataFiltro').value = ''; // Limpa o calendário
+        aplicarFiltro(null); // Passando null ele não filtra, mostra tudo
+    });
+
+    document.getElementById('btnFiltrarData').addEventListener('click', () => {
+        const valorInput = document.getElementById('inputDataFiltro').value;
+        if (valorInput) {
+            const dataFormatada = converterDataInputParaBR(valorInput);
+            aplicarFiltro(dataFormatada);
+        } else {
+            alert('Por favor, escolha uma data no calendário antes de buscar.');
+        }
+    });
+
+    // --- LÓGICA DE PROCESSAMENTO E RENDERIZAÇÃO ---
 
     function limparValor(val) {
         if (typeof val === 'number') return val;
@@ -330,7 +315,21 @@
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
     }
 
-    function processarDados(dados) {
+    function processarE_RenderizarDados(dados) {
+        const container = document.getElementById('dadosPorDia');
+        container.innerHTML = ''; // Limpa a tabela anterior
+
+        if (dados.length === 0) {
+            document.getElementById('totalQtd').innerText = "0";
+            document.getElementById('totalValor').innerText = "R$ 0,00";
+            container.innerHTML = `
+                <div class="empty-state">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px; opacity: 0.5;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <br>Nenhum pagamento encontrado para este filtro.
+                </div>`;
+            return;
+        }
+
         const agrupadoPorData = {};
         let totalQtd = 0;
         let totalValor = 0;
@@ -357,17 +356,14 @@
             totalValor += valor;
         });
 
+        // Atualiza Cards de Resumo
         document.getElementById('totalQtd').innerText = totalQtd;
         document.getElementById('totalValor').innerText = formatarMoeda(totalValor);
         
-        renderizarTabelas(agrupadoPorData);
-    }
+        // Renderiza Tabelas
+        container.innerHTML = '<h3 style="color: var(--primary-dark); margin-top: 0; margin-bottom: 20px;">Detalhamento das Operações</h3>';
 
-    function renderizarTabelas(dadosAgrupados) {
-        const container = document.getElementById('dadosPorDia');
-        container.innerHTML = '<h3 style="color: var(--primary-dark); margin-top: 0; margin-bottom: 20px;">Detalhamento por Data</h3>';
-
-        for (const [data, info] of Object.entries(dadosAgrupados)) {
+        for (const [data, info] of Object.entries(agrupadoPorData)) {
             let html = `
                 <div class="day-section">
                     <div class="day-header">
@@ -396,7 +392,6 @@
                 let statusBadge = '';
                 let statusLower = item.status.toLowerCase();
                 
-                // Adaptação dos checks para a paleta Business Blue
                 if (statusLower === 'envio de comprovante') {
                     statusBadge = `
                         <span class="badge status-ok">
