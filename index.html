@@ -376,6 +376,18 @@
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
     }
 
+    // MAPEAR STATUS PARA A NOVA ORDEM
+    function normalizarStatus(statusBruto) {
+        let s = statusBruto.toLowerCase();
+        if (s.includes('recebido')) return 'Pagamento recebido';
+        if (s.includes('enviado') || s.includes('conferência')) return 'Enviado para conferencia';
+        if (s.includes('conferido')) return 'Conferido (para aprovação)';
+        if (s.includes('aprovação 1') || s.includes('aprovacão i')) return 'Aprovação I';
+        if (s.includes('aprovação 2') || s.includes('aprovacão ii')) return 'Aprovação II';
+        if (s.includes('comprovante')) return 'Comprovante (OK)';
+        return statusBruto; // Fallback
+    }
+
     // Renderização dos Gráficos
     function renderizarGraficos(dados) {
         if(dados.length === 0) {
@@ -384,19 +396,36 @@
         }
         document.getElementById('chartsSection').style.display = 'grid';
 
-        const contagemStatus = {};
+        // Inicializamos os status exatos na ordem solicitada com ZERO
+        const contagemStatus = {
+            'Pagamento recebido': 0,
+            'Enviado para conferencia': 0,
+            'Conferido (para aprovação)': 0,
+            'Aprovação I': 0,
+            'Aprovação II': 0,
+            'Comprovante (OK)': 0
+        };
         const valorPorTipo = {};
 
         dados.forEach(linha => {
-            const status = (linha['Status'] || linha['status'] || linha['STATUS'] || 'Sem Status').trim();
+            const statusBruto = (linha['Status'] || linha['status'] || linha['STATUS'] || 'Sem Status').trim();
             const tipo = (linha['Tipo'] || linha['tipo'] || linha['TIPO'] || 'Outros').trim();
             const valor = limparValor(linha['Valor'] || linha['valor'] || linha['VALOR']);
 
-            contagemStatus[status] = (contagemStatus[status] || 0) + 1;
+            const statusMapeado = normalizarStatus(statusBruto);
+            
+            if (contagemStatus[statusMapeado] !== undefined) {
+                contagemStatus[statusMapeado]++;
+            } else {
+                // Se por acaso vier algo bizarro na planilha que não está mapeado
+                contagemStatus[statusMapeado] = (contagemStatus[statusMapeado] || 0) + 1;
+            }
+
             valorPorTipo[tipo] = (valorPorTipo[tipo] || 0) + valor;
         });
 
-        const paletaCores = ['#567c8e', '#2f4157', '#a2c1d1', '#c7d9e5', '#7a9eb0'];
+        // 6 cores para as 6 etapas da esteira
+        const paletaCores = ['#e3ecf2', '#c7d9e5', '#a2c1d1', '#7a9eb0', '#567c8e', '#2f4157'];
 
         // Gráfico 1
         const ctxStatus = document.getElementById('statusChart').getContext('2d');
@@ -482,24 +511,26 @@
         const agrupadoPorData = {};
         let totalQtd = 0;
         let totalValor = 0;
-        let concluidos = 0; // Contador para a barra de progresso
+        let concluidos = 0;
 
         dados.forEach(linha => {
             let data = linha['Data'] || linha['data'] || linha['DATA'] || 'Sem Data';
             const tipo = (linha['Tipo'] || linha['tipo'] || linha['TIPO'] || '-').trim();
             const valor = limparValor(linha['Valor'] || linha['valor'] || linha['VALOR']);
-            const status = (linha['Status'] || linha['status'] || linha['STATUS'] || '').trim();
+            const statusBruto = (linha['Status'] || linha['status'] || linha['STATUS'] || '').trim();
+            
+            // Normaliza o nome do status para exibir bonitinho na tabela também
+            const statusMapeado = normalizarStatus(statusBruto);
 
             if (!agrupadoPorData[data]) agrupadoPorData[data] = { qtd: 0, soma: 0, itens: [] };
             agrupadoPorData[data].qtd += 1;
             agrupadoPorData[data].soma += valor;
-            agrupadoPorData[data].itens.push({ tipo, valor, status });
+            agrupadoPorData[data].itens.push({ tipo, valor, status: statusMapeado });
 
             totalQtd++;
             totalValor += valor;
 
-            // Verifica se o status é o de finalização (OK)
-            if (status.toLowerCase() === 'envio de comprovante') {
+            if (statusMapeado === 'Comprovante (OK)') {
                 concluidos++;
             }
         });
@@ -508,7 +539,6 @@
         let porcentagem = totalQtd > 0 ? Math.round((concluidos / totalQtd) * 100) : 0;
         let pendentes = totalQtd - concluidos;
         
-        // Aplica a animação na barra
         setTimeout(() => {
             document.getElementById('progressBarFill').style.width = porcentagem + '%';
         }, 100); 
@@ -547,8 +577,8 @@
 
             info.itens.forEach(item => {
                 let statusBadge = '';
-                if (item.status.toLowerCase() === 'envio de comprovante') {
-                    statusBadge = `<span class="badge status-ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> OK - Comprovante</span>`;
+                if (item.status === 'Comprovante (OK)') {
+                    statusBadge = `<span class="badge status-ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Comprovante (OK)</span>`;
                 } else {
                     statusBadge = `<span class="badge status-pending"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> ${item.status}</span>`;
                 }
