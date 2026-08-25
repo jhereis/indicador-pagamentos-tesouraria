@@ -217,7 +217,7 @@
 
     <div id="dashboard" style="display: none;">
         
-        <!-- TERMÔMETRO EXECUTIVO (A novidade para o gestor na correria) -->
+        <!-- TERMÔMETRO EXECUTIVO -->
         <div class="progress-card" id="progressCard">
             <div class="progress-header">
                 <h3>
@@ -511,7 +511,7 @@
         // Aplica a animação na barra
         setTimeout(() => {
             document.getElementById('progressBarFill').style.width = porcentagem + '%';
-        }, 100); // Pequeno atraso para o CSS animar bonito
+        }, 100); 
         
         document.getElementById('progressText').innerText = porcentagem + '%';
         document.getElementById('qtdConcluido').innerText = concluidos + (concluidos === 1 ? ' finalizada (OK)' : ' finalizadas (OK)');
