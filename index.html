@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-width=1.0">
-    <title>Indicador de Pagamentos - Business Blue</title>
-    <!-- Biblioteca para ler Excel direto no navegador -->
+    <title>Indicador de Pagamentos - Business Blue & Gráficos</title>
+    <!-- Biblioteca para ler Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Biblioteca para Gráficos (Chart.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
         :root {
-            /* Paleta Business Blue exata */
+            /* Paleta Business Blue */
             --bg-color: #f3f6f9;       
             --card-bg: #ffffff;        
             --primary: #567c8e;        
@@ -67,7 +70,7 @@
         }
         input[type="file"]::file-selector-button:hover { background-color: var(--primary-dark); }
         
-        /* Estilos dos Filtros */
+        /* Filtros */
         .filter-container {
             display: flex; align-items: center; gap: 15px; flex-wrap: wrap;
             background-color: var(--card-bg); padding: 15px 25px; border-radius: 8px;
@@ -92,12 +95,11 @@
         }
         .date-picker-group input[type="date"] {
             padding: 8px 12px; border: 1px solid var(--primary-muted);
-            border-radius: 6px; color: var(--primary-dark); font-family: inherit;
-            outline: none;
+            border-radius: 6px; color: var(--primary-dark); font-family: inherit; outline: none;
         }
         .date-picker-group input[type="date"]:focus { border-color: var(--primary); }
         
-        /* Resumos e Tabelas */
+        /* Resumos e Gráficos */
         .summary-grid {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 25px;
         }
@@ -109,6 +111,28 @@
         .summary-box h3 { margin: 0 0 10px 0; font-size: 14px; font-weight: 500; text-transform: uppercase; opacity: 0.9; }
         .summary-box p { margin: 0; font-size: 32px; font-weight: 700; }
         
+        /* Sessão de Gráficos */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .chart-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--primary-light);
+            box-shadow: 0 4px 6px -1px rgba(47, 65, 87, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 320px;
+        }
+        .chart-card h4 { margin: 0 0 15px 0; color: var(--primary-dark); font-size: 16px; width: 100%; text-align: center; border-bottom: 1px solid var(--bg-color); padding-bottom: 10px;}
+        .chart-container-inner { width: 100%; height: 240px; position: relative; }
+
+        /* Tabelas */
         .day-section { margin-bottom: 40px; }
         .day-header {
             background-color: var(--primary-light); border-left: 4px solid var(--primary-dark);
@@ -159,7 +183,7 @@
 
     <div id="loader">Processando dados...</div>
 
-    <!-- Barra de Filtros (Escondida até carregar o arquivo) -->
+    <!-- Barra de Filtros -->
     <div id="filterSection" class="filter-container" style="display: none;">
         <span class="filter-label">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
@@ -179,6 +203,8 @@
     </div>
 
     <div id="dashboard" style="display: none;">
+        
+        <!-- Cards de Resumo -->
         <div class="summary-grid">
             <div class="summary-box">
                 <h3 id="tituloQtd">Total de Pagamentos (Filtro)</h3>
@@ -190,6 +216,25 @@
             </div>
         </div>
 
+        <!-- GRÁFICOS (Novidade para o Gestor) -->
+        <div class="charts-grid" id="chartsSection" style="display: none;">
+            <!-- Gráfico 1: Status -->
+            <div class="chart-card">
+                <h4>Status das Aprovações (Qtd de Operações)</h4>
+                <div class="chart-container-inner">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+            <!-- Gráfico 2: Valores por Tipo -->
+            <div class="chart-card">
+                <h4>Volume Financeiro por Tipo (R$)</h4>
+                <div class="chart-container-inner">
+                    <canvas id="tipoChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabelas de Dados -->
         <div class="card" id="dadosPorDia">
             <!-- Os dados aparecerão aqui -->
         </div>
@@ -197,8 +242,9 @@
 </div>
 
 <script>
-    // Variável global para armazenar os dados crus do Excel
     let dadosGlobaisExcel = [];
+    let statusChartInstancia = null;
+    let tipoChartInstancia = null;
 
     document.getElementById('uploadExcel').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -217,7 +263,6 @@
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 
-                // Converte Excel para JSON
                 dadosGlobaisExcel = XLSX.utils.sheet_to_json(worksheet, {raw: false});
                 
                 setTimeout(() => { 
@@ -225,10 +270,8 @@
                     document.getElementById('filterSection').style.display = 'flex';
                     document.getElementById('dashboard').style.display = 'block';
                     
-                    // Ao carregar, já filtra pelo dia de hoje automaticamente
                     aplicarFiltro(obterDataHojeFormatada());
                 }, 500);
-
             } catch (error) {
                 alert("Erro ao ler o arquivo. Certifique-se de que é um Excel válido.");
                 document.getElementById('loader').style.display = 'none';
@@ -237,73 +280,60 @@
         reader.readAsArrayBuffer(file);
     });
 
-    // --- FUNÇÕES DE DATA E FILTRO ---
-
+    // Data Helpers
     function obterDataHojeFormatada() {
         const hoje = new Date();
         const d = String(hoje.getDate()).padStart(2, '0');
         const m = String(hoje.getMonth() + 1).padStart(2, '0');
         const y = hoje.getFullYear();
-        return `${d}/${m}/${y}`; // Retorna DD/MM/YYYY
+        return `${d}/${m}/${y}`;
     }
 
     function converterDataInputParaBR(dataInput) {
-        // O input type="date" retorna "YYYY-MM-DD"
         if (!dataInput) return null;
         const partes = dataInput.split('-');
         if (partes.length !== 3) return null;
         return `${partes[2]}/${partes[1]}/${partes[0]}`;
     }
 
+    // Lógica de Filtro
     function aplicarFiltro(dataFiltro) {
         if (!dadosGlobaisExcel || dadosGlobaisExcel.length === 0) return;
 
         let dadosFiltrados = dadosGlobaisExcel;
         
-        // Se houver uma data definida para filtro, aplicamos a lógica
         if (dataFiltro) {
             dadosFiltrados = dadosGlobaisExcel.filter(linha => {
                 let d = linha['Data'] || linha['data'] || linha['DATA'] || '';
-                // Transforma em string para evitar erros e checa se contém a data
                 return String(d).includes(dataFiltro);
             });
-            
-            // Atualiza os títulos dos cards de resumo
             document.getElementById('tituloQtd').innerText = `Total de Pagamentos (${dataFiltro})`;
             document.getElementById('tituloValor').innerText = `Volume Financeiro (${dataFiltro})`;
         } else {
-            // Se for "Mostrar Tudo"
             document.getElementById('tituloQtd').innerText = `Total de Pagamentos (Geral)`;
             document.getElementById('tituloValor').innerText = `Volume Financeiro (Geral)`;
         }
 
         processarE_RenderizarDados(dadosFiltrados);
+        renderizarGraficos(dadosFiltrados); // Atualiza gráficos junto com a tabela!
     }
 
-    // --- EVENTOS DOS BOTÕES ---
-
+    // Botões
     document.getElementById('btnHoje').addEventListener('click', () => {
-        document.getElementById('inputDataFiltro').value = ''; // Limpa o calendário
+        document.getElementById('inputDataFiltro').value = '';
         aplicarFiltro(obterDataHojeFormatada());
     });
-
     document.getElementById('btnTudo').addEventListener('click', () => {
-        document.getElementById('inputDataFiltro').value = ''; // Limpa o calendário
-        aplicarFiltro(null); // Passando null ele não filtra, mostra tudo
+        document.getElementById('inputDataFiltro').value = '';
+        aplicarFiltro(null);
     });
-
     document.getElementById('btnFiltrarData').addEventListener('click', () => {
         const valorInput = document.getElementById('inputDataFiltro').value;
-        if (valorInput) {
-            const dataFormatada = converterDataInputParaBR(valorInput);
-            aplicarFiltro(dataFormatada);
-        } else {
-            alert('Por favor, escolha uma data no calendário antes de buscar.');
-        }
+        if (valorInput) aplicarFiltro(converterDataInputParaBR(valorInput));
+        else alert('Por favor, escolha uma data no calendário antes de buscar.');
     });
 
-    // --- LÓGICA DE PROCESSAMENTO E RENDERIZAÇÃO ---
-
+    // Processamento
     function limparValor(val) {
         if (typeof val === 'number') return val;
         if (!val) return 0;
@@ -315,9 +345,107 @@
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
     }
 
+    // Renderização dos Gráficos (A mágica visual para o Gestor)
+    function renderizarGraficos(dados) {
+        if(dados.length === 0) {
+            document.getElementById('chartsSection').style.display = 'none';
+            return;
+        }
+        document.getElementById('chartsSection').style.display = 'grid';
+
+        const contagemStatus = {};
+        const valorPorTipo = {};
+
+        dados.forEach(linha => {
+            const status = (linha['Status'] || linha['status'] || linha['STATUS'] || 'Sem Status').trim();
+            const tipo = (linha['Tipo'] || linha['tipo'] || linha['TIPO'] || 'Outros').trim();
+            const valor = limparValor(linha['Valor'] || linha['valor'] || linha['VALOR']);
+
+            contagemStatus[status] = (contagemStatus[status] || 0) + 1;
+            valorPorTipo[tipo] = (valorPorTipo[tipo] || 0) + valor;
+        });
+
+        const paletaCores = ['#567c8e', '#2f4157', '#a2c1d1', '#c7d9e5', '#7a9eb0'];
+
+        // Gráfico 1: Rosquinha (Status)
+        const ctxStatus = document.getElementById('statusChart').getContext('2d');
+        if (statusChartInstancia) statusChartInstancia.destroy();
+        
+        statusChartInstancia = new Chart(ctxStatus, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(contagemStatus),
+                datasets: [{
+                    data: Object.values(contagemStatus),
+                    backgroundColor: paletaCores,
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#2f4157', font: { family: 'Inter', size: 11 } } }
+                },
+                cutout: '65%' // Deixa o gráfico mais elegante
+            }
+        });
+
+        // Gráfico 2: Barras (Valor por Tipo)
+        const ctxTipo = document.getElementById('tipoChart').getContext('2d');
+        if (tipoChartInstancia) tipoChartInstancia.destroy();
+
+        tipoChartInstancia = new Chart(ctxTipo, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(valorPorTipo),
+                datasets: [{
+                    label: 'Volume Financeiro (R$)',
+                    data: Object.values(valorPorTipo),
+                    backgroundColor: '#567c8e',
+                    borderRadius: 6 // Bordas arredondadas nas barras
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return formatarMoeda(context.raw);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#567c8e',
+                            font: { family: 'Inter', size: 10 },
+                            callback: function(value) {
+                                // Formata eixo Y para resumir milhões/milhares se precisar, ou mantém Real
+                                return 'R$ ' + value.toLocaleString('pt-BR');
+                            }
+                        },
+                        grid: { color: '#e3ecf2' }
+                    },
+                    x: {
+                        ticks: { color: '#2f4157', font: { family: 'Inter', size: 11, weight: '500' } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // Renderização da Tabela
     function processarE_RenderizarDados(dados) {
         const container = document.getElementById('dadosPorDia');
-        container.innerHTML = ''; // Limpa a tabela anterior
+        container.innerHTML = ''; 
 
         if (dados.length === 0) {
             document.getElementById('totalQtd').innerText = "0";
@@ -336,18 +464,11 @@
 
         dados.forEach(linha => {
             let data = linha['Data'] || linha['data'] || linha['DATA'] || 'Sem Data';
-            const tipo = linha['Tipo'] || linha['tipo'] || linha['TIPO'] || '-';
-            
-            let valorBruto = linha['Valor'] || linha['valor'] || linha['VALOR'];
-            const valor = limparValor(valorBruto);
-            
-            const statusBruto = linha['Status'] || linha['status'] || linha['STATUS'] || '';
-            const status = statusBruto.trim();
+            const tipo = (linha['Tipo'] || linha['tipo'] || linha['TIPO'] || '-').trim();
+            const valor = limparValor(linha['Valor'] || linha['valor'] || linha['VALOR']);
+            const status = (linha['Status'] || linha['status'] || linha['STATUS'] || '').trim();
 
-            if (!agrupadoPorData[data]) {
-                agrupadoPorData[data] = { qtd: 0, soma: 0, itens: [] };
-            }
-
+            if (!agrupadoPorData[data]) agrupadoPorData[data] = { qtd: 0, soma: 0, itens: [] };
             agrupadoPorData[data].qtd += 1;
             agrupadoPorData[data].soma += valor;
             agrupadoPorData[data].itens.push({ tipo, valor, status });
@@ -356,21 +477,16 @@
             totalValor += valor;
         });
 
-        // Atualiza Cards de Resumo
         document.getElementById('totalQtd').innerText = totalQtd;
         document.getElementById('totalValor').innerText = formatarMoeda(totalValor);
         
-        // Renderiza Tabelas
         container.innerHTML = '<h3 style="color: var(--primary-dark); margin-top: 0; margin-bottom: 20px;">Detalhamento das Operações</h3>';
 
         for (const [data, info] of Object.entries(agrupadoPorData)) {
             let html = `
                 <div class="day-section">
                     <div class="day-header">
-                        <h4>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                            ${data}
-                        </h4>
+                        <h4><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> ${data}</h4>
                         <div class="day-stats">
                             <span>Vol: <strong>${info.qtd}</strong> op.</span>
                             <span style="margin: 0 10px; color: var(--border);">|</span>
@@ -390,29 +506,12 @@
 
             info.itens.forEach(item => {
                 let statusBadge = '';
-                let statusLower = item.status.toLowerCase();
-                
-                if (statusLower === 'envio de comprovante') {
-                    statusBadge = `
-                        <span class="badge status-ok">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            OK - Comprovante
-                        </span>`;
+                if (item.status.toLowerCase() === 'envio de comprovante') {
+                    statusBadge = `<span class="badge status-ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> OK - Comprovante</span>`;
                 } else {
-                    statusBadge = `
-                        <span class="badge status-pending">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                            ${item.status}
-                        </span>`;
+                    statusBadge = `<span class="badge status-pending"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> ${item.status}</span>`;
                 }
-
-                html += `
-                    <tr>
-                        <td style="font-weight: 500;">${item.tipo}</td>
-                        <td>${formatarMoeda(item.valor)}</td>
-                        <td>${statusBadge}</td>
-                    </tr>
-                `;
+                html += `<tr><td style="font-weight: 500;">${item.tipo}</td><td>${formatarMoeda(item.valor)}</td><td>${statusBadge}</td></tr>`;
             });
 
             html += `</tbody></table></div>`;
