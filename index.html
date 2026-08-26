@@ -126,7 +126,7 @@
 
 <div class="container">
     <div class="header">
-        <h2><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg> Portal de Pagamentos & Tesouraria</h2>
+        <h2><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg> Portal de Pagamentos & Tesouraria</h2>
         <p>Visão Integrada de Aprovações e STAF</p>
     </div>
 
@@ -283,7 +283,6 @@
     let statusChartInstancia = null;
     let tipoChartInstancia = null;
     
-    // Novas instâncias dos 3 gráficos
     let chartPenhoraInst = null;
     let chartPixInst = null;
     let chartPagamentoInst = null;
@@ -320,16 +319,44 @@
     }
 
     function aplicarFiltroSTAF() { fecharSidebarSTAF(); renderizarStafDashboard(); }
-    function limparFiltrosSTAF() {
-        document.getElementById('stafFiltroDataIni').value = '';
-        document.getElementById('stafFiltroDataFim').value = '';
-        document.getElementById('stafFiltroModelo').value = '';
-        aplicarFiltroSTAF();
+    function limparFiltrosSTAF() { document.getElementById('stafFiltroDataIni').value = ''; document.getElementById('stafFiltroDataFim').value = ''; document.getElementById('stafFiltroModelo').value = ''; aplicarFiltroSTAF(); }
+
+    // --- TRATAMENTO UNIVERSAL DE DATAS ---
+    function normalizarDataStr(val) {
+        if (!val) return '';
+        if (val instanceof Date) { return `${String(val.getDate()).padStart(2, '0')}/${String(val.getMonth() + 1).padStart(2, '0')}/${val.getFullYear()}`; }
+        // Força datas seriais do Excel para PT-BR compensando timezone
+        if (typeof val === 'number') {
+            const dt = new Date(Math.round((val - 25569) * 86400 * 1000));
+            const brDate = new Date(dt.getTime() + dt.getTimezoneOffset() * 60000);
+            return `${String(brDate.getDate()).padStart(2, '0')}/${String(brDate.getMonth() + 1).padStart(2, '0')}/${brDate.getFullYear()}`;
+        }
+        let str = String(val).trim();
+        if (str.includes('-')) {
+            const p = str.split('T')[0].split('-');
+            if (p.length === 3) return `${p[2].padStart(2, '0')}/${p[1].padStart(2, '0')}/${p[0]}`;
+        }
+        if (str.includes('/')) {
+            const p = str.split('/');
+            if (p.length === 3) {
+                let d = p[0], m = p[1], y = p[2];
+                if (y.length === 2) y = '20' + y;
+                if (parseInt(m) > 12) return `${m.padStart(2, '0')}/${d.padStart(2, '0')}/${y}`;
+                return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+            }
+        }
+        return str;
     }
 
-    // Função auxiliar para comparar datas
     function converterDataBRParaObj(str) { if (!str) return null; const p = str.split('/'); return p.length === 3 ? new Date(p[2], p[1] - 1, p[0]) : null; }
     function converterInputParaObj(str) { if (!str) return null; const p = str.split('-'); return p.length === 3 ? new Date(p[0], p[1] - 1, p[2]) : null; }
+    function obterDataHojeFormatada() { const h = new Date(); return `${String(h.getDate()).padStart(2, '0')}/${String(h.getMonth() + 1).padStart(2, '0')}/${h.getFullYear()}`; }
+    function converterDataInputParaBR(d) { if (!d) return null; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : null; }
+    function normalizarStatus(s) { s = String(s).toLowerCase(); if (s.includes('recebido')) return 'Pagamento recebido'; if (s.includes('enviado') || s.includes('conferencia')) return 'Enviado para conferencia'; if (s.includes('conferido')) return 'Conferido (para aprovação)'; if (s.includes('aprovação 1') || s.includes('aprovacão i')) return 'Aprovação I'; if (s.includes('aprovação 2') || s.includes('aprovacão ii')) return 'Aprovação II'; if (s.includes('comprovante')) return 'Comprovante (OK)'; return s; }
+    function limparValor(val) { if (typeof val === 'number') return val; if (!val) return 0; return parseFloat(val.toString().replace(/[R$\s\.]/g, '').replace(',', '.')) || 0; }
+    function formatarMoeda(val) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val); }
+
+    function extrairDadosPadronizados(item) { return { id: item._id, data: normalizarDataStr(item['Data'] || item['data'] || item['DATA'] || ''), tipo: item['Tipo'] || item['tipo'] || item['TIPO'] || '', valor: limparValor(item['Valor'] || item['valor'] || item['VALOR']), statusMap: normalizarStatus(item['Status'] || item['status'] || item['STATUS'] || ''), razao: item['Razão Social'] || item['Razao Social'] || item['Favorecido'] || item['Fornecedor'] || 'Não informado', fonte: item['Fonte'] }; }
 
     document.getElementById('formManual').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -346,7 +373,8 @@
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, {type: 'array', cellDates: true});
-                const jsonCru = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {raw: false});
+                // Importante: Raw true garante que o conversor de datas funcione 100%
+                const jsonCru = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {raw: true});
                 dadosCarregadosExcel = jsonCru.map(item => ({ ...item, _id: 'ex_' + gerarId(), 'Fonte': 'Automação' }));
                 setTimeout(() => { document.getElementById('loader').style.display = 'none'; document.getElementById('uploadCard').style.display = 'none'; dataFiltroAtual = null; atualizarDadosGlobais(); }, 500);
             } catch (error) { alert("Erro ao ler o arquivo Excel."); document.getElementById('loader').style.display = 'none'; }
@@ -356,19 +384,10 @@
     function atualizarDadosGlobais() {
         dadosGlobaisUnificados = [...dadosManuaisAnalista, ...dadosCarregadosExcel];
         if (!dataFiltroAtual && dadosGlobaisUnificados.length > 0) dataFiltroAtual = obterDataHojeFormatada();
-        aplicarFiltroDash(dataFiltroAtual);
-        popularSelectModelosSTAF(); 
+        aplicarFiltroDash(dataFiltroAtual); popularSelectModelosSTAF(); 
         if (document.getElementById('btnTabManual').classList.contains('active')) renderizarTabelaGerenciamento();
         if (document.getElementById('btnTabStaf').classList.contains('active')) renderizarStafDashboard();
     }
-
-    // --- UTILS ---
-    function extrairDadosPadronizados(item) { return { id: item._id, data: item['Data'] || item['data'] || item['DATA'] || '', tipo: item['Tipo'] || item['tipo'] || item['TIPO'] || '', valor: limparValor(item['Valor'] || item['valor'] || item['VALOR']), statusMap: normalizarStatus(item['Status'] || item['status'] || item['STATUS'] || ''), razao: item['Razão Social'] || item['Razao Social'] || item['Favorecido'] || item['Fornecedor'] || 'Não informado', fonte: item['Fonte'] }; }
-    function normalizarStatus(s) { s = String(s).toLowerCase(); if (s.includes('recebido')) return 'Pagamento recebido'; if (s.includes('enviado') || s.includes('conferencia')) return 'Enviado para conferencia'; if (s.includes('conferido')) return 'Conferido (para aprovação)'; if (s.includes('aprovação 1') || s.includes('aprovacão i')) return 'Aprovação I'; if (s.includes('aprovação 2') || s.includes('aprovacão ii')) return 'Aprovação II'; if (s.includes('comprovante')) return 'Comprovante (OK)'; return s; }
-    function limparValor(val) { if (typeof val === 'number') return val; if (!val) return 0; return parseFloat(val.toString().replace(/[R$\s\.]/g, '').replace(',', '.')) || 0; }
-    function formatarMoeda(val) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val); }
-    function obterDataHojeFormatada() { const h = new Date(); return `${String(h.getDate()).padStart(2, '0')}/${String(h.getMonth() + 1).padStart(2, '0')}/${h.getFullYear()}`; }
-    function converterDataInputParaBR(d) { if (!d) return null; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : null; }
 
     function renderizarTabelaGerenciamento() {
         const tbody = document.getElementById('tbodyGerenciamento');
@@ -398,12 +417,10 @@
         const dtFim = converterInputParaObj(document.getElementById('stafFiltroDataFim').value);
         const modeloFiltro = document.getElementById('stafFiltroModelo').value;
 
-        // Filtra apenas o que é STAF efetivado
         const ocorridos = dadosGlobaisUnificados.filter(item => {
             const d = extrairDadosPadronizados(item);
             if (d.statusMap !== 'Comprovante (OK)') return false;
             if (modeloFiltro && d.tipo !== modeloFiltro) return false;
-            
             const dataObj = converterDataBRParaObj(d.data);
             if (dataObj) {
                 if (dtIni && dataObj < dtIni) return false;
@@ -413,28 +430,21 @@
         });
         
         let totalVal = 0, totalQtd = ocorridos.length;
-        const porModelo = {};
-        const mesesSet = new Set();
+        const porModelo = {}; const mesesSet = new Set();
 
         ocorridos.forEach(item => {
             const d = extrairDadosPadronizados(item);
             totalVal += d.valor;
-            
-            // Popula tabela detalhada
             if (!porModelo[d.tipo]) porModelo[d.tipo] = { qtd: 0, valor: 0 };
             porModelo[d.tipo].qtd++; porModelo[d.tipo].valor += d.valor;
-            
-            // Popula meses únicos para o Eixo X
             const partes = d.data.split('/');
             if (partes.length === 3) mesesSet.add(`${partes[1]}/${partes[2]}`);
         });
 
-        // KPIs
         document.getElementById('stafQtd').innerText = totalQtd;
         document.getElementById('stafValorTotal').innerText = formatarMoeda(totalVal);
         document.getElementById('stafTicketMedio').innerText = formatarMoeda(totalQtd > 0 ? (totalVal / totalQtd) : 0);
 
-        // Preenche Tabela
         const tbody = document.getElementById('stafTbody'); tbody.innerHTML = '';
         if (totalQtd === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Nenhuma operação encontrada para este filtro.</td></tr>';
@@ -448,18 +458,15 @@
             });
         }
 
-        // ORDENA OS MESES CRONOLOGICAMENTE
-        const labelsMes = Array.from(mesesSet).sort((a,b) => { 
+        let labelsMes = Array.from(mesesSet).sort((a,b) => { 
             const [mA, yA] = a.split('/'); const [mB, yB] = b.split('/'); 
             return new Date(yA, mA - 1) - new Date(yB, mB - 1); 
         });
 
-        // ESTRUTURAS DE DADOS DOS GRÁFICOS (VALOR E VOLUME)
-        const dataPenhoraVal = labelsMes.map(() => 0); const dataPenhoraQtd = labelsMes.map(() => 0);
-        const dataPixVal = labelsMes.map(() => 0);     const dataPixQtd = labelsMes.map(() => 0);
-        const dataPagVal = labelsMes.map(() => 0);     const dataPagQtd = labelsMes.map(() => 0);
+        let dataPenhoraVal = labelsMes.map(() => 0); let dataPenhoraQtd = labelsMes.map(() => 0);
+        let dataPixVal = labelsMes.map(() => 0);     let dataPixQtd = labelsMes.map(() => 0);
+        let dataPagVal = labelsMes.map(() => 0);     let dataPagQtd = labelsMes.map(() => 0);
 
-        // DISTRIBUIÇÃO DAS CATEGORIAS
         ocorridos.forEach(item => {
             const d = extrairDadosPadronizados(item);
             const partes = d.data.split('/');
@@ -468,22 +475,29 @@
                 const idx = labelsMes.indexOf(mesAno);
                 const tipoLower = d.tipo.toLowerCase();
                 
-                // Lógica de separação
-                if(tipoLower.includes('penhora')) {
-                    dataPenhoraVal[idx] += d.valor;
-                    dataPenhoraQtd[idx]++;
-                } else if(tipoLower.includes('pix')) {
-                    dataPixVal[idx] += d.valor;
-                    dataPixQtd[idx]++;
-                } else {
-                    // Tudo que não é explicitamente Penhora ou Pix vai para Pagamentos Gerais
-                    dataPagVal[idx] += d.valor;
-                    dataPagQtd[idx]++;
-                }
+                if(tipoLower.includes('penhora')) { dataPenhoraVal[idx] += d.valor; dataPenhoraQtd[idx]++; } 
+                else if(tipoLower.includes('pix')) { dataPixVal[idx] += d.valor; dataPixQtd[idx]++; } 
+                else { dataPagVal[idx] += d.valor; dataPagQtd[idx]++; }
             }
         });
 
-        // Função Construtora dos Gráficos Individuais
+        // EFEITO VISUAL: AUTO-PADDING PARA CRIAR TIMELINE SE HOUVER SÓ 1 MÊS
+        if (labelsMes.length === 1) {
+            const [m, y] = labelsMes[0].split('/');
+            const baseDate = new Date(y, m - 1, 1);
+            const newLabels = [];
+            for (let i = 5; i >= 1; i--) { // projeta 5 meses anteriores vazios para o grafico ficar elegante
+                const d = new Date(baseDate.getFullYear(), baseDate.getMonth() - i, 1);
+                newLabels.push(`${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`);
+            }
+            labelsMes = [...newLabels, labelsMes[0]];
+            
+            const padArray = (arr) => [...Array(5).fill(0), arr[0]];
+            dataPenhoraVal = padArray(dataPenhoraVal); dataPenhoraQtd = padArray(dataPenhoraQtd);
+            dataPixVal = padArray(dataPixVal); dataPixQtd = padArray(dataPixQtd);
+            dataPagVal = padArray(dataPagVal); dataPagQtd = padArray(dataPagQtd);
+        }
+
         const gerarGraficoEvolucao = (ctxId, refAtual, dadosQtd, dadosValor, corPrincipal) => {
             const ctx = document.getElementById(ctxId).getContext('2d');
             if (refAtual) refAtual.destroy();
@@ -492,53 +506,22 @@
                 data: {
                     labels: labelsMes,
                     datasets: [
-                        {
-                            type: 'line',
-                            label: 'Volume (Qtd)',
-                            data: dadosQtd,
-                            borderColor: '#1a2533',
-                            backgroundColor: '#1a2533',
-                            borderWidth: 2,
-                            pointRadius: 4,
-                            yAxisID: 'y1'
-                        },
-                        {
-                            type: 'bar',
-                            label: 'Valor Total (R$)',
-                            data: dadosValor,
-                            backgroundColor: corPrincipal,
-                            borderRadius: 4,
-                            yAxisID: 'y'
-                        }
+                        { type: 'line', label: 'Volume (Qtd)', data: dadosQtd, borderColor: '#1a2533', backgroundColor: '#1a2533', borderWidth: 2, pointRadius: 4, yAxisID: 'y1' },
+                        { type: 'bar', label: 'Valor Total (R$)', data: dadosValor, backgroundColor: corPrincipal, borderRadius: 4, maxBarThickness: 50, yAxisID: 'y' }
                     ]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     scales: { 
-                        y: { 
-                            type: 'linear', position: 'left',
-                            ticks: { color: corPrincipal, callback: v => v >= 1000 ? 'R$ ' + (v/1000).toFixed(0) + 'k' : 'R$ ' + v }, 
-                            grid: { color: '#e3ecf2' } 
-                        }, 
-                        y1: { 
-                            type: 'linear', position: 'right', 
-                            ticks: { color: '#1a2533', stepSize: 1 }, grid: { display: false } 
-                        }, 
+                        y: { type: 'linear', position: 'left', ticks: { color: corPrincipal, callback: v => v >= 1000 ? 'R$ ' + (v/1000).toFixed(0) + 'k' : 'R$ ' + v }, grid: { color: '#e3ecf2' } }, 
+                        y1: { type: 'linear', position: 'right', ticks: { color: '#1a2533', stepSize: 1 }, grid: { display: false } }, 
                         x: { grid: { display: false } } 
                     },
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: { 
-                            callbacks: { 
-                                label: c => c.dataset.type === 'line' ? c.raw + ' transações' : formatarMoeda(c.raw) 
-                            } 
-                        } 
-                    }
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.dataset.type === 'line' ? c.raw + ' transações' : formatarMoeda(c.raw) } } }
                 }
             });
         };
 
-        // Renderiza os 3 gráficos usando paletas sutis e corporativas
         chartPenhoraInst = gerarGraficoEvolucao('chartPenhora', chartPenhoraInst, dataPenhoraQtd, dataPenhoraVal, '#a2c1d1');
         chartPixInst = gerarGraficoEvolucao('chartPix', chartPixInst, dataPixQtd, dataPixVal, '#567c8e');
         chartPagamentoInst = gerarGraficoEvolucao('chartPagamento', chartPagamentoInst, dataPagQtd, dataPagVal, '#2f4157');
@@ -553,8 +536,7 @@
         if (dadosGlobaisUnificados.length === 0) return;
         let filtrados = data ? dadosGlobaisUnificados.filter(linha => String(extrairDadosPadronizados(linha).data).includes(data)) : dadosGlobaisUnificados;
         
-        document.getElementById('tituloQtd').innerText = `Total de Pagamentos (${data || 'Geral'})`;
-        document.getElementById('tituloValor').innerText = `Volume Financeiro (${data || 'Geral'})`;
+        document.getElementById('tituloQtd').innerText = `Total de Pagamentos (${data || 'Geral'})`; document.getElementById('tituloValor').innerText = `Volume Financeiro (${data || 'Geral'})`;
         const agrupadoPorData = {}; let tQtd = 0, tVal = 0, concluidos = 0; const contStatus = {}, porTipo = {};
         filtrados.forEach(linha => { const d = extrairDadosPadronizados(linha); if (!agrupadoPorData[d.data]) agrupadoPorData[d.data] = { qtd: 0, soma: 0, itens: [] }; agrupadoPorData[d.data].qtd++; agrupadoPorData[d.data].soma += d.valor; agrupadoPorData[d.data].itens.push(d); tQtd++; tVal += d.valor; if (d.statusMap === 'Comprovante (OK)') concluidos++; contStatus[d.statusMap] = (contStatus[d.statusMap] || 0) + 1; porTipo[d.tipo] = (porTipo[d.tipo] || 0) + d.valor; });
         let perc = tQtd > 0 ? Math.round((concluidos / tQtd) * 100) : 0; setTimeout(() => { document.getElementById('progressBarFill').style.width = perc + '%'; }, 100); document.getElementById('progressText').innerText = perc + '%'; document.getElementById('qtdConcluido').innerText = concluidos + ' finalizadas'; document.getElementById('qtdPendente').innerText = (tQtd - concluidos) + ' pendentes'; document.getElementById('totalQtd').innerText = tQtd; document.getElementById('totalValor').innerText = formatarMoeda(tVal);
